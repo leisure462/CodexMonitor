@@ -1,7 +1,7 @@
 # CodexMonitor Agent Guide
 
 ## Project Summary
-CodexMonitor is a macOS Tauri app that orchestrates Codex agents across local workspaces. The frontend is React + Vite; the backend is a Tauri Rust process that spawns `codex app-server` per workspace and streams JSON-RPC events.
+CodexMonitor is a Tauri desktop app (macOS, Linux, Windows) that orchestrates Codex agents across local workspaces. The frontend is React + Vite; the backend is a Tauri Rust process that spawns `codex app-server` per workspace and streams JSON-RPC events.
 
 ## Key Paths
 
@@ -94,7 +94,7 @@ to the next minor version.
 
 ## Notes
 
-- The window uses `titleBarStyle: "Overlay"` and macOS private APIs for transparency.
+- The window uses `titleBarStyle: "Overlay"` and macOS private APIs for transparency on macOS; Windows/Linux use the platform overrides in `src-tauri/tauri.windows.conf.json` and `src-tauri/tauri.linux.conf.json`.
 - Avoid breaking the JSON-RPC format; app-server rejects requests before initialization.
 - The debug panel is UI-only; it logs client/server/app-server events from `useAppServerEvents`.
 - App settings live in `settings.json` under the app data directory (Codex path, default access mode, UI scale).

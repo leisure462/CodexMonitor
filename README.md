@@ -2,7 +2,7 @@
 
 ![CodexMonitor](screenshot.png)
 
-CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
+CodexMonitor is a Tauri desktop app for orchestrating multiple Codex agents across local workspaces (macOS, Linux, and Windows). It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
 
 ## Features
 
@@ -22,7 +22,7 @@ CodexMonitor is a macOS Tauri app for orchestrating multiple Codex agents across
 - Resizable sidebar/right/plan/debug panels with persisted sizes.
 - Responsive layouts for desktop/tablet/phone with tabbed navigation.
 - In-app updater with toast-driven download/install.
-- macOS overlay title bar with vibrancy effects and optional reduced transparency.
+- macOS overlay title bar with vibrancy effects and optional reduced transparency (Windows/Linux use a standard title bar).
 
 ## Requirements
 
@@ -57,6 +57,8 @@ npm run tauri build
 ```
 
 The macOS app bundle will be in `src-tauri/target/release/bundle/macos/`.
+The Linux AppImage will be in `src-tauri/target/release/bundle/appimage/`.
+The Windows installer will be in `src-tauri/target/release/bundle/msi/`.
 
 ## Type Checking
 

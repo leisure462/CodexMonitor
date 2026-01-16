@@ -27,8 +27,28 @@ fn terminal_key(workspace_id: &str, terminal_id: &str) -> String {
     format!("{workspace_id}:{terminal_id}")
 }
 
+#[cfg(target_os = "windows")]
 fn shell_path() -> String {
-    std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
+    std::env::var("CODEXMONITOR_SHELL")
+        .or_else(|_| std::env::var("SHELL"))
+        .unwrap_or_else(|_| "powershell.exe".to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn shell_path() -> String {
+    std::env::var("CODEXMONITOR_SHELL")
+        .or_else(|_| std::env::var("SHELL"))
+        .unwrap_or_else(|_| "/bin/zsh".to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn shell_args() -> Vec<&'static str> {
+    vec!["-NoLogo", "-NoProfile"]
+}
+
+#[cfg(not(target_os = "windows"))]
+fn shell_args() -> Vec<&'static str> {
+    vec!["-i"]
 }
 
 fn spawn_terminal_reader(
@@ -104,7 +124,9 @@ pub(crate) async fn terminal_open(
 
     let mut cmd = CommandBuilder::new(shell_path());
     cmd.cwd(cwd);
-    cmd.arg("-i");
+    for arg in shell_args() {
+        cmd.arg(arg);
+    }
     cmd.env("TERM", "xterm-256color");
 
     let child = pair

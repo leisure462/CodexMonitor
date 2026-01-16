@@ -216,12 +216,61 @@ jobs:
           name: appimage-${{ matrix.arch }}
           path: src-tauri/target/release/bundle/appimage/*.AppImage*
 
+  build_windows:
+    runs-on: windows-latest
+    environment: release
+    env:
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      TAURI_SIGNING_PRIVATE_KEY_B64: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_B64 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write Tauri signing key
+        shell: pwsh
+        run: |
+          $tauriDir = Join-Path $env:USERPROFILE ".tauri"
+          New-Item -ItemType Directory -Force -Path $tauriDir | Out-Null
+          $keyPath = Join-Path $tauriDir "codexmonitor.key"
+          [IO.File]::WriteAllBytes($keyPath, [Convert]::FromBase64String($env:TAURI_SIGNING_PRIVATE_KEY_B64))
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $keyPath = Join-Path $env:USERPROFILE ".tauri\codexmonitor.key"
+          $env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $keyPath -Raw
+          npm run tauri -- build --bundles msi
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: src-tauri/target/release/bundle/msi/*.msi*
+
   release:
     runs-on: ubuntu-latest
     environment: release
     needs:
       - build_macos
       - build_linux
+      - build_windows
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -241,6 +290,12 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-msi
+          path: release-artifacts
+
       - name: Build latest.json
         run: |
           set -euo pipefail
@@ -254,6 +309,8 @@ jobs:
           )
 
           SIGNATURE=$(cat release-artifacts/CodexMonitor.app.tar.gz.sig)
+          WINDOWS_MSI=$(ls release-artifacts/*.msi | head -n 1)
+          WINDOWS_SIG=$(ls release-artifacts/*.msi.sig | head -n 1)
           LAST_TAG=$(git tag --sort=-version:refname \
             | grep -v "^v${VERSION}$" \
             | head -n 1 || true)
@@ -307,6 +364,10 @@ jobs:
           from pathlib import Path
 
           notes = Path("release-artifacts/release-notes.md").read_text().strip()
+          repo = "${GITHUB_REPOSITORY}"
+
+          windows_msi = Path("${WINDOWS_MSI}").name
+          windows_sig = Path("${WINDOWS_SIG}").read_text().strip()
 
           payload = {
             "version": "${VERSION}",
@@ -314,9 +375,13 @@ jobs:
             "pub_date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "platforms": {
               "darwin-aarch64": {
-                "url": "https://github.com/Dimillian/CodexMonitor/releases/download/v${VERSION}/CodexMonitor.app.tar.gz",
+                "url": f"https://github.com/{repo}/releases/download/v${VERSION}/CodexMonitor.app.tar.gz",
                 "signature": "${SIGNATURE}",
-              }
+              },
+              "windows-x86_64": {
+                "url": f"https://github.com/{repo}/releases/download/v${VERSION}/{windows_msi}",
+                "signature": windows_sig,
+              },
             },
           }
 
@@ -346,6 +411,7 @@ jobs:
             release-artifacts/CodexMonitor.app.tar.gz \
             release-artifacts/CodexMonitor.app.tar.gz.sig \
             release-artifacts/*.AppImage* \
+            release-artifacts/*.msi* \
             release-artifacts/latest.json
 
       - name: Bump version and open PR
